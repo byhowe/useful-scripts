@@ -13,8 +13,8 @@ class github_repo:
     archived: bool
     ssh_url: str
     mailmap: list[str] = field(default_factory=list)
-    branches: list[str] = field(default_factory=list)
     replace: bool = True
+    _branches: list[str] | None = None
 
     @classmethod
     def parse_from_api(cls, repo: dict[str, Any]) -> "github_repo":
@@ -25,12 +25,18 @@ class github_repo:
             archived=repo["archived"],
         )
 
-        r = requests.get(f"https://api.github.com/repos/{user}/{c.name}/branches")
-        branches_json = r.json()
-        branches = map(lambda b: b["name"], branches_json)
-        c.branches.extend(branches)
-
         return c
+
+    @property
+    def branches(self) -> list[str]:
+        if not self._branches:
+            r = requests.get(
+                f"https://api.github.com/repos/{user}/{self.name}/branches"
+            )
+            branches_json = r.json()
+            branches = map(lambda b: b["name"], branches_json)
+            self._branches = list(branches)
+        return self._branches
 
 
 r = requests.get(f"https://api.github.com/users/{user}/repos")
