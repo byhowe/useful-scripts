@@ -1,12 +1,24 @@
 from dataclasses import dataclass, field
 from typing import Any
+from enum import Enum
+import os.path
 import requests
 import subprocess
+import sys
 import tempfile
 
 user = input("Username > ")
 repos_url = f"https://api.github.com/users/{user}/repos"
 branches_url = f"https://api.github.com/repos/{user}/{{name}}/branches"
+
+
+class clone_status(Enum):
+    already_cloned = 1
+    unknown_error = 2
+    successful = 3
+
+    def is_ok(self):
+        return self == clone_status.successful
 
 
 @dataclass
@@ -79,7 +91,23 @@ class github_repo:
                 self._set_origin(origin)
 
     def push(self, branch: str):
-        subprocess.call(["git", "push", "--force", "-u", "origin", branch], cwd=repo.name)
+        subprocess.call(
+            ["git", "push", "--force", "-u", "origin", branch], cwd=repo.name
+        )
+
+    def clone(self, where: str | None = None) -> clone_status:
+        where = where if where is not None else self.name
+        if os.path.isdir(where):
+            return clone_status.already_cloned
+        try:
+            subprocess.run(
+                ["git", "clone", repo.clone_url, where],
+                check=True,
+                capture_output=True,
+            )
+            return clone_status.successful
+        except subprocess.CalledProcessError:
+            return clone_status.unknown_error
 
 
 r = requests.get(repos_url)
@@ -90,15 +118,14 @@ repos = list(repo for repo in repos if not repo.archived)
 print("Stage 1: Cloning")
 for repo in repos:
     print(f"cloning {user}/{repo.name}...")
-    try:
-        subprocess.run(
-            ["git", "clone", repo.clone_url],
-            check=True,
-            capture_output=True,
-        )
-    except subprocess.CalledProcessError:
-        print(f"Already cloned {user}/{repo.name}")
-        continue
+    match repo.clone():
+        case clone_status.already_cloned:
+            print(f"{user}/{repo.name} is already cloned")
+        case clone_status.unknown_error:
+            print(
+                f"{user}/{repo.name} could not be cloned due to unknown error!",
+                file=sys.stderr,
+            )
 
 print("Stage 2: Extracting mailmap")
 for repo in repos:
