@@ -36,7 +36,7 @@ class github_repo:
         # `self._branches` is an empty list, which would mean there is an error
         # since there has to be at least one branch.
         if not self._branches:
-            r = requests.get(branches_url.format(repo=self.name))
+            r = requests.get(branches_url.format(name=self.name))
             self._branches = list(b["name"] for b in r.json())
         return self._branches
 
