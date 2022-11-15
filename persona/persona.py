@@ -40,6 +40,38 @@ class github_repo:
             self._branches = list(b["name"] for b in r.json())
         return self._branches
 
+    @property
+    def origin_url(self) -> str | None:
+        try:
+            p = subprocess.run(
+                ["git", "remote", "get-url", "origin"],
+                capture_output=True,
+                cwd=self.name,
+            )
+            return p.stdout[:-1].decode()
+        except subprocess.CalledProcessError:
+            return None
+
+    @origin_url.setter
+    def origin_url(self, origin: str | None):
+        match (origin is None, self.origin_url is None):
+            case (True, False):
+                subprocess.run(
+                    ["git", "remote", "remove", "origin"],
+                    capture_output=True,
+                    cwd=self.name,
+                )
+            case (False, True):
+                subprocess.run(
+                    ["git", "remote", "add", "origin", origin],
+                    capture_output=True,
+                    cwd=self.name,
+                    check=True,
+                )
+            case (False, False):
+                self.origin_url = None
+                self.origin_url = origin
+
 
 r = requests.get(repos_url)
 repos = r.json()
@@ -129,16 +161,6 @@ for repo in (repo for repo in repos if repo.replace):
 
 print("Stage 7: Push")
 for repo in repos:
-    subprocess.run(
-        ["git", "remote", "remove", "origin"],
-        capture_output=True,
-        cwd=repo.name,
-    )
-    subprocess.run(
-        ["git", "remote", "add", "origin", repo.ssh_url],
-        capture_output=True,
-        check=True,
-        cwd=repo.name,
-    )
+    repo.origin_url = repo.ssh_url
     for b in repo.branches:
         subprocess.call(["git", "push", "--force", "-u", "origin", b], cwd=repo.name)
