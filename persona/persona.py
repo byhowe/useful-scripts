@@ -113,6 +113,13 @@ class github_repo:
         except subprocess.CalledProcessError:
             return clone_status.unknown_error
 
+    @property
+    def rev_list(self) -> list[str]:
+        # Careful. Make sure this does not raise exception, which would
+        # propogate and be caught in the caller.
+        p = subprocess.run(["git", "rev-list", "--all"], capture_output=True, cwd=repo.name)
+        return p.stdout.decode().splitlines()
+
 
 r = requests.get(repos_url)
 repos = r.json()
@@ -171,20 +178,18 @@ find = input("what to search for > ")
 print(f"Searching for {find.__repr__()} in the repos...")
 finds = []
 for repo in repos:
-    p = subprocess.run(["git", "rev-list", "--all"], capture_output=True, cwd=repo.name)
-    revs = p.stdout.decode().splitlines()
     try:
         p = subprocess.run(
-            ["git", "grep", "-i", find, *revs],
+            ["git", "grep", "-i", find, *repo.rev_list],
             capture_output=True,
             check=True,
             cwd=repo.name,
         )
+        lines = p.stdout.decode().splitlines()
+        finds.extend(map(lambda l: l[41:], lines))
     except subprocess.CalledProcessError:
         print(f"No need to replace {repo.full_name}")
         repo.replace = False
-    lines = p.stdout.decode().splitlines()
-    finds.extend(map(lambda l: l[41:], lines))
 finds = list(set(finds))
 textreplace_path = tempfile.mktemp()
 with open(textreplace_path, "wt") as f:
