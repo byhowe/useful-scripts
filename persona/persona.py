@@ -43,6 +43,10 @@ class github_repo:
         return c
 
     @property
+    def full_name(self) -> str:
+        return f"{user}/{self.name}"
+
+    @property
     def branches(self) -> list[str]:
         # Note that the below if statement would return True if
         # `self._branches` is an empty list, which would mean there is an error
@@ -117,13 +121,13 @@ repos = list(repo for repo in repos if not repo.archived)
 
 print("Stage 1: Cloning")
 for repo in repos:
-    print(f"cloning {user}/{repo.name}...")
+    print(f"cloning {repo.full_name}...")
     match repo.clone():
         case clone_status.already_cloned:
-            print(f"{user}/{repo.name} is already cloned")
+            print(f"{repo.full_name} is already cloned")
         case clone_status.unknown_error:
             print(
-                f"{user}/{repo.name} could not be cloned due to unknown error!",
+                f"{repo.full_name} could not be cloned due to unknown error!",
                 file=sys.stderr,
             )
 
@@ -152,7 +156,7 @@ subprocess.call(["vim", mailmap_path])
 
 print("Stage 4: Applying mailmap")
 for repo in repos:
-    print(f"Applying for {user}/{repo.name}")
+    print(f"Applying for {repo.full_name}")
     subprocess.run(
         ["git", "filter-repo", "--force", "--mailmap", mailmap_path],
         capture_output=True,
@@ -175,7 +179,7 @@ for repo in repos:
             cwd=repo.name,
         )
     except subprocess.CalledProcessError:
-        print(f"No need to replace {user}/{repo.name}")
+        print(f"No need to replace {repo.full_name}")
         repo.replace = False
     lines = p.stdout.decode().splitlines()
     finds.extend(map(lambda l: l[41:], lines))
@@ -187,7 +191,7 @@ subprocess.call(["vim", textreplace_path])
 
 print("Stage 6: Applying replace text")
 for repo in (repo for repo in repos if repo.replace):
-    print(f"Applying for {user}/{repo.name}")
+    print(f"Applying for {repo.full_name}")
     subprocess.run(
         ["git", "filter-repo", "--force", "--replace-text", textreplace_path],
         capture_output=True,
