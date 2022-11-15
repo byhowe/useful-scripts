@@ -78,6 +78,9 @@ class github_repo:
                 self._set_origin_to_null()
                 self._set_origin(origin)
 
+    def push(self, branch: str):
+        subprocess.call(["git", "push", "--force", "-u", "origin", branch], cwd=repo.name)
+
 
 r = requests.get(repos_url)
 repos = r.json()
@@ -169,4 +172,4 @@ print("Stage 7: Push")
 for repo in repos:
     repo.origin_url = repo.ssh_url
     for b in repo.branches:
-        subprocess.call(["git", "push", "--force", "-u", "origin", b], cwd=repo.name)
+        repo.push(branch=b)
