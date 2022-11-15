@@ -29,6 +29,9 @@ class github_repo:
 
     @property
     def branches(self) -> list[str]:
+        # Note that the below if statement would return True if
+        # `self._branches` is an empty list, which would mean there is an error
+        # since there has to be at least one branch.
         if not self._branches:
             r = requests.get(
                 f"https://api.github.com/repos/{user}/{self.name}/branches"
