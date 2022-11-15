@@ -4,6 +4,8 @@ import requests
 import subprocess
 
 user = input("Username > ")
+repos_url = f"https://api.github.com/users/{user}/repos"
+branches_url = f"https://api.github.com/repos/{user}/{{name}}/branches"
 
 
 @dataclass
@@ -33,16 +35,12 @@ class github_repo:
         # `self._branches` is an empty list, which would mean there is an error
         # since there has to be at least one branch.
         if not self._branches:
-            r = requests.get(
-                f"https://api.github.com/repos/{user}/{self.name}/branches"
-            )
-            branches_json = r.json()
-            branches = map(lambda b: b["name"], branches_json)
-            self._branches = list(branches)
+            r = requests.get(branches_url.format(repo=self.name))
+            self._branches = list(b["name"] for b in r.json())
         return self._branches
 
 
-r = requests.get(f"https://api.github.com/users/{user}/repos")
+r = requests.get(repos_url)
 repos = r.json()
 repos = list(github_repo.parse_from_api(repo) for repo in repos)
 repos = list(repo for repo in repos if not repo.archived)
