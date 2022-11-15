@@ -120,14 +120,16 @@ repos = list(github_repo.parse_from_api(repo) for repo in repos)
 repos = list(repo for repo in repos if not repo.archived)
 
 print("Stage 1: Cloning")
-for repo in repos:
-    print(f"cloning {repo.full_name}...")
+print(f"Found {len(repos)} repositories in total")
+for i, repo in enumerate(repos, start=1):
     match repo.clone():
+        case clone_status.successful:
+            print(f"[{i}/{len(repos)}] {repo.full_name} cloned successfully")
         case clone_status.already_cloned:
-            print(f"{repo.full_name} is already cloned")
+            print(f"[{i}/{len(repos)}] {repo.full_name} is already cloned")
         case clone_status.unknown_error:
             print(
-                f"{repo.full_name} could not be cloned due to unknown error!",
+                f"[{i}/{len(repos)}] {repo.full_name} could not be cloned!",
                 file=sys.stderr,
             )
 
