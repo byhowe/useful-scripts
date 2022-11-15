@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any
 import requests
 import subprocess
+import tempfile
 
 user = input("Username > ")
 repos_url = f"https://api.github.com/users/{user}/repos"
@@ -76,15 +77,16 @@ mailmap = []
 for repo in repos:
     mailmap.extend(repo.mailmap)
 mailmap = list(set(mailmap))
-with open("mailmap", "wt") as f:
+mailmap_path = tempfile.mktemp()
+with open(mailmap_path, "wt") as f:
     f.write("\n".join(mailmap))
-subprocess.call(["vim", "mailmap"])
+subprocess.call(["vim", mailmap_path])
 
 print("Stage 4: Applying mailmap")
 for repo in repos:
     print(f"Applying for {user}/{repo.name}")
     subprocess.run(
-        ["git", "filter-repo", "--force", "--mailmap", "../mailmap"],
+        ["git", "filter-repo", "--force", "--mailmap", mailmap_path],
         capture_output=True,
         check=True,
         cwd=repo.name,
@@ -110,15 +112,16 @@ for repo in repos:
     lines = p.stdout.decode().splitlines()
     finds.extend(map(lambda l: l[41:], lines))
 finds = list(set(finds))
-with open("textreplace", "wt") as f:
+textreplace_path = tempfile.mktemp()
+with open(textreplace_path, "wt") as f:
     f.write("\n".join(finds))
-subprocess.call(["vim", "textreplace"])
+subprocess.call(["vim", textreplace_path])
 
 print("Stage 6: Applying replace text")
 for repo in (repo for repo in repos if repo.replace):
     print(f"Applying for {user}/{repo.name}")
     subprocess.run(
-        ["git", "filter-repo", "--force", "--replace-text", "../textreplace"],
+        ["git", "filter-repo", "--force", "--replace-text", textreplace_path],
         capture_output=True,
         check=True,
         cwd=repo.name,
