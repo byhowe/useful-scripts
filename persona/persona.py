@@ -52,25 +52,31 @@ class github_repo:
         except subprocess.CalledProcessError:
             return None
 
+    def _set_origin_to_null(self):
+        subprocess.run(
+            ["git", "remote", "remove", "origin"],
+            capture_output=True,
+            cwd=self.name,
+        )
+
+    def _set_origin(self, origin: str):
+        subprocess.run(
+            ["git", "remote", "add", "origin", origin],
+            capture_output=True,
+            cwd=self.name,
+            check=True,
+        )
+
     @origin_url.setter
     def origin_url(self, origin: str | None):
         match (origin is None, self.origin_url is None):
             case (True, False):
-                subprocess.run(
-                    ["git", "remote", "remove", "origin"],
-                    capture_output=True,
-                    cwd=self.name,
-                )
+                self._set_origin_to_null()
             case (False, True):
-                subprocess.run(
-                    ["git", "remote", "add", "origin", origin],
-                    capture_output=True,
-                    cwd=self.name,
-                    check=True,
-                )
+                self._set_origin(origin)
             case (False, False):
-                self.origin_url = None
-                self.origin_url = origin
+                self._set_origin_to_null()
+                self._set_origin(origin)
 
 
 r = requests.get(repos_url)
