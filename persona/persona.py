@@ -243,13 +243,18 @@ def personahelp():
         "mailmap     : runs mailmap\n"
         "textreplace : runs textreplace\n"
         "push        : runs push\n"
-        "cleanup     : runes cleanup\n",
+        "cleanup     : runs cleanup\n"
+        "exit        : exit\n",
         end="",
     )
 
 
 while True:
-    cmd = input("(persona) ")
+    try:
+        cmd = input("(persona) ")
+    except KeyboardInterrupt:
+        print("Bye...")
+        break
     match cmd:
         case "help" | "?":
             personahelp()
@@ -261,3 +266,5 @@ while True:
             push()
         case "cleanup":
             cleanup()
+        case "exit":
+            break
