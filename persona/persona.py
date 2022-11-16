@@ -3,6 +3,7 @@ from typing import Any
 from enum import Enum
 import os.path
 import requests
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -30,6 +31,7 @@ class github_repo:
     mailmap: list[str] = field(default_factory=list)
     replace: bool = True
     _branches: list[str] | None = None
+    _where: str | None = None
 
     @classmethod
     def parse_from_api(cls, repo: dict[str, Any]) -> "github_repo":
@@ -99,13 +101,17 @@ class github_repo:
             ["git", "push", "--force", "-u", "origin", branch], cwd=repo.name
         )
 
+    @property
+    def where(self) -> str:
+        return self._where if self._where is not None else self.name
+
     def clone(self, where: str | None = None) -> clone_status:
-        where = where if where is not None else self.name
-        if os.path.isdir(where):
+        self._where = where
+        if os.path.isdir(self.where):
             return clone_status.already_cloned
         try:
             subprocess.run(
-                ["git", "clone", repo.clone_url, where],
+                ["git", "clone", repo.clone_url, self.where],
                 check=True,
                 capture_output=True,
             )
@@ -225,12 +231,19 @@ def push():
             repo.push(branch=b)
 
 
+def cleanup():
+    print(f"Removing {len(repos)} repositories...")
+    for repo in repos:
+        shutil.rmtree(repo.where)
+
+
 def personahelp():
     print(
         "help | ?    : prints help menu\n"
         "mailmap     : runs mailmap\n"
         "textreplace : runs textreplace\n"
-        "push        : runs push\n",
+        "push        : runs push\n"
+        "cleanup     : runes cleanup\n",
         end="",
     )
 
@@ -246,3 +259,5 @@ while True:
             textreplace()
         case "push":
             push()
+        case "cleanup":
+            cleanup()
