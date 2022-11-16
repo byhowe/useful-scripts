@@ -125,11 +125,18 @@ class github_repo:
 
 r = requests.get(repos_url)
 repos = r.json()
-repos = list(github_repo.parse_from_api(repo) for repo in repos)
-repos = list(repo for repo in repos if not repo.archived)
+repos = (github_repo.parse_from_api(repo) for repo in repos)
+repos = (repo for repo in repos if not repo.archived)
+repos = list(repos)
 
-print("Stage 1: Cloning")
 print(f"Found {len(repos)} repositories in total")
+print(" ".join(repo.name for repo in repos))
+
+discard = input("Any you would like to filter out? (seperate with spaces) ")
+discard = discard.split()
+discard = list(e.strip() for e in discard)
+repos = list(repo for repo in repos if repo.name not in discard)
+
 for i, repo in enumerate(repos, start=1):
     match repo.clone():
         case clone_status.successful:
