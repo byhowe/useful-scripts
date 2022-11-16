@@ -149,77 +149,100 @@ for i, repo in enumerate(repos, start=1):
                 file=sys.stderr,
             )
 
-print("Stage 2: Extracting mailmap")
-for repo in repos:
-    p = subprocess.run(
-        "git log | grep 'Author:'",
-        capture_output=True,
-        check=True,
-        cwd=repo.name,
-        shell=True,
-    )
-    author_lines = p.stdout.decode().splitlines()
-    mailmap = map(lambda m: m[8:], author_lines)
-    repo.mailmap.extend(list(set(mailmap)))
 
-print("Stage 3: Mailmap")
-mailmap = []
-for repo in repos:
-    mailmap.extend(repo.mailmap)
-mailmap = list(set(mailmap))
-mailmap_path = tempfile.mktemp()
-with open(mailmap_path, "wt") as f:
-    f.write("\n".join(mailmap))
-subprocess.call(["vim", mailmap_path])
-
-print("Stage 4: Applying mailmap")
-for repo in repos:
-    print(f"Applying for {repo.full_name}")
-    subprocess.run(
-        ["git", "filter-repo", "--force", "--mailmap", mailmap_path],
-        capture_output=True,
-        check=True,
-        cwd=repo.name,
-    )
-
-print("Stage 5: Replace text")
-find = input("what to search for > ")
-print(f"Searching for {find.__repr__()} in the repos...")
-finds = []
-for i, repo in enumerate(repos, start=1):
-    try:
+def mailmap():
+    for repo in repos:
         p = subprocess.run(
-            ["git", "grep", "-i", find, *repo.rev_list],
+            "git log | grep 'Author:'",
+            capture_output=True,
+            check=True,
+            cwd=repo.name,
+            shell=True,
+        )
+        author_lines = p.stdout.decode().splitlines()
+        mailmap = map(lambda m: m[8:], author_lines)
+        repo.mailmap.extend(list(set(mailmap)))
+
+    mailmap = []
+    for repo in repos:
+        mailmap.extend(repo.mailmap)
+    mailmap = list(set(mailmap))
+    mailmap_path = tempfile.mktemp()
+    with open(mailmap_path, "wt") as f:
+        f.write("\n".join(mailmap))
+    subprocess.call(["vim", mailmap_path])
+
+    for repo in repos:
+        print(f"Applying for {repo.full_name}")
+        subprocess.run(
+            ["git", "filter-repo", "--force", "--mailmap", mailmap_path],
             capture_output=True,
             check=True,
             cwd=repo.name,
         )
-        lines = p.stdout.decode().splitlines()
-        finds.extend(map(lambda l: l[41:], lines))
-        print(f"[{i}/{len(repos)}] Matched string in {repo.full_name}")
-    except subprocess.CalledProcessError:
-        print(
-            f"[{i}/{len(repos)}] Failed to match string in {repo.full_name}, skipping"
-        )
-        repo.replace = False
-finds = list(set(finds))
-textreplace_path = tempfile.mktemp()
-with open(textreplace_path, "wt") as f:
-    f.write("\n".join(finds))
-subprocess.call(["vim", textreplace_path])
 
-print("Stage 6: Applying replace text")
-for repo in (repo for repo in repos if repo.replace):
-    print(f"Applying for {repo.full_name}")
-    subprocess.run(
-        ["git", "filter-repo", "--force", "--replace-text", textreplace_path],
-        capture_output=True,
-        check=True,
-        cwd=repo.name,
+
+def textreplace():
+    find = input("what to search for > ")
+    print(f"Searching for {find.__repr__()} in the repos...")
+    finds = []
+    for i, repo in enumerate(repos, start=1):
+        try:
+            p = subprocess.run(
+                ["git", "grep", "-i", find, *repo.rev_list],
+                capture_output=True,
+                check=True,
+                cwd=repo.name,
+            )
+            lines = p.stdout.decode().splitlines()
+            finds.extend(map(lambda l: l[41:], lines))
+            print(f"[{i}/{len(repos)}] Matched string in {repo.full_name}")
+        except subprocess.CalledProcessError:
+            print(
+                f"[{i}/{len(repos)}] Failed to match string in {repo.full_name}, skipping"
+            )
+            repo.replace = False
+    finds = list(set(finds))
+    textreplace_path = tempfile.mktemp()
+    with open(textreplace_path, "wt") as f:
+        f.write("\n".join(finds))
+    subprocess.call(["vim", textreplace_path])
+
+    for repo in (repo for repo in repos if repo.replace):
+        print(f"Applying for {repo.full_name}")
+        subprocess.run(
+            ["git", "filter-repo", "--force", "--replace-text", textreplace_path],
+            capture_output=True,
+            check=True,
+            cwd=repo.name,
+        )
+
+
+def push():
+    for repo in repos:
+        repo.origin_url = repo.ssh_url
+        for b in repo.branches:
+            repo.push(branch=b)
+
+
+def personahelp():
+    print(
+        "help | ?    : prints help menu\n"
+        "mailmap     : runs mailmap\n"
+        "textreplace : runs textreplace\n"
+        "push        : runs push\n",
+        end="",
     )
 
-print("Stage 7: Push")
-for repo in repos:
-    repo.origin_url = repo.ssh_url
-    for b in repo.branches:
-        repo.push(branch=b)
+
+while True:
+    cmd = input("(persona) ")
+    match cmd:
+        case "help" | "?":
+            personahelp()
+        case "mailmap":
+            mailmap()
+        case "textreplace":
+            textreplace()
+        case "push":
+            push()
